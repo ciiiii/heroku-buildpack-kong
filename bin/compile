@@ -44,7 +44,8 @@ fi
 # commit or tag to checkout
 if [ -f "${ENV_DIR}/KONG_GIT_COMMITISH" ]; then
   IS_CUSTOM_BUILD=true
-  KONG_GIT_COMMITISH=$(cat ${ENV_DIR}/KONG_GIT_COMMITISH)
+  # KONG_GIT_COMMITISH=$(cat ${ENV_DIR}/KONG_GIT_COMMITISH)
+  KONG_GIT_COMMITISH="5cdce7c19dd7d65e02794c782baf96efbcf4a0f8"
 else
   KONG_GIT_COMMITISH="5cdce7c19dd7d65e02794c782baf96efbcf4a0f8"
 fi
@@ -239,8 +240,9 @@ else
   if [ -d "$KONG_SOURCE_DIR" ]; then
     cd $KONG_SOURCE_DIR
     git fetch
-    git fetch --tags
-    git reset --hard $(git rev-list -n 1 $KONG_GIT_COMMITISH)
+    # git fetch --tags
+    # git reset --hard $(git rev-list -n 1 $KONG_GIT_COMMITISH)
+    git checkout $KONG_GIT_COMMITISH
   else
     git clone $KONG_GIT_URL $KONG_SOURCE_DIR
     cd $KONG_SOURCE_DIR
