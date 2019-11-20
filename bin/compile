@@ -14,7 +14,11 @@ set -u
 BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
-BP_DIR=`cd $(dirname $0); cd ..; pwd`
+BP_DIR=$(
+  cd $(dirname $0)
+  cd ..
+  pwd
+)
 VENDOR_DIR=${BP_DIR}/vendor
 
 # Make dyno runtime-compatible prefix for compiled artifacts
@@ -31,31 +35,28 @@ IS_CUSTOM_BUILD=false
 RUNTIME_ARCHIVE_URL="${KONG_RUNTIME_ARCHIVE_URL:-https://s3-us-west-1.amazonaws.com/kong-on-heroku/kong-runtime-v7.0.2.tgz}"
 
 # Source for Kong
-if [ -f "${ENV_DIR}/KONG_GIT_URL" ]
-then
+if [ -f "${ENV_DIR}/KONG_GIT_URL" ]; then
   IS_CUSTOM_BUILD=true
-  KONG_GIT_URL=`cat ${ENV_DIR}/KONG_GIT_URL`
+  KONG_GIT_URL=$(cat ${ENV_DIR}/KONG_GIT_URL)
 else
   KONG_GIT_URL="https://github.com/kong/kong.git"
 fi
 # commit or tag to checkout
-if [ -f "${ENV_DIR}/KONG_GIT_COMMITISH" ]
-then
+if [ -f "${ENV_DIR}/KONG_GIT_COMMITISH" ]; then
   IS_CUSTOM_BUILD=true
-  KONG_GIT_COMMITISH=`cat ${ENV_DIR}/KONG_GIT_COMMITISH`
+  KONG_GIT_COMMITISH=$(cat ${ENV_DIR}/KONG_GIT_COMMITISH)
 else
-  KONG_GIT_COMMITISH="1.0.2"
+  KONG_GIT_COMMITISH="2455e856d77de7cafd4e0a1046c1ac9bed0a524856af7ee1a306dec6b8d2d792"
 fi
 
 KONG_SOURCE_DIR="${BP_CACHE_DIR}/kong-source"
 
-
 # Set dependency versions.
 # These correspond to the archives in `vendor/`.
 # If upgrading any those archives, then update the corresponding version here.
-LUAROCKS_VERSION=2.4.4
-OPENSSL_VERSION=1.1.1
-OPENRESTY_VERSION=1.13.6.2
+LUAROCKS_VERSION=3.1.3
+OPENSSL_VERSION=1.1.1b
+OPENRESTY_VERSION=1.15.8.1
 
 function error() {
   echo " !     $*" >&2
@@ -69,8 +70,8 @@ function topic() {
 function indent() {
   c='s/^/       /'
   case $(uname) in
-    Darwin) sed -l "$c";;
-    *)      sed -u "$c";;
+  Darwin) sed -l "$c" ;;
+  *) sed -u "$c" ;;
   esac
 }
 
@@ -132,10 +133,9 @@ export LUA_PATH="$BUILD_DIR/lib/?.lua;$BUILD_DIR/lib/?/init.lua;$BUILD_DIR/.luar
 export LUA_CPATH="$BUILD_DIR/lib/?.so;$BUILD_DIR/.luarocks/lib/lua/5.1/?.so;$APP_PREFIX/lib/lua/5.1/?.so;./?.so"
 
 #give environment to later buildpacks
-export | grep -E -e ' (PATH|LD_LIBRARY_PATH|LIBRARY_PATH|INCLUDE_PATH|CPATH|CPPPATH|PKG_CONFIG_PATH)='  > "$BP_DIR/export"
+export | grep -E -e ' (PATH|LD_LIBRARY_PATH|LIBRARY_PATH|INCLUDE_PATH|CPATH|CPPPATH|PKG_CONFIG_PATH)=' >"$BP_DIR/export"
 
-if [ $IS_CUSTOM_BUILD = false ]
-then
+if [ $IS_CUSTOM_BUILD = false ]; then
   topic "Installing Kong for buildpack from ${RUNTIME_ARCHIVE_URL}"
   curl --silent --location "${RUNTIME_ARCHIVE_URL}" | tar xzm -C "${APP_PREFIX}" --strip-components=2
 else
@@ -156,21 +156,19 @@ else
   touch ${VENDOR_DIFF}
   touch ${VENDOR_HASH}
   touch ${VENDOR_HASH_NEW}
-  openssl dgst -sha1 * > ${VENDOR_HASH_NEW}
+  openssl dgst -sha1 * >${VENDOR_HASH_NEW}
   # `diff` signals differences with exit codes. Don't fail fast.
   set +e
-  diff ${VENDOR_HASH} ${VENDOR_HASH_NEW} > ${VENDOR_DIFF}
+  diff ${VENDOR_HASH} ${VENDOR_HASH_NEW} >${VENDOR_DIFF}
   DIFF_STATUS=$?
   set -e
   mv -f ${VENDOR_HASH_NEW} ${VENDOR_HASH}
 
-  if [ "$DIFF_STATUS" == 0 ] && [ -d "$PREFIX_CACHE_DIR" ]
-  then
+  if [ "$DIFF_STATUS" == 0 ] && [ -d "$PREFIX_CACHE_DIR" ]; then
     topic "Restoring from cache"
     cp -R $PREFIX_CACHE_DIR/* $APP_PREFIX/
 
-  elif [ "$DIFF_STATUS" == 0 ] || [ "$DIFF_STATUS" == 1 ]
-  then
+  elif [ "$DIFF_STATUS" == 0 ] || [ "$DIFF_STATUS" == 1 ]; then
     topic "Changes detected"
     IFS=$'\n'
     for DIFF_LINE in $(cat "$VENDOR_DIFF"); do
@@ -207,13 +205,12 @@ else
     # version contained by current OpenResty version, this will break when OpenResty is upgraded
     nginx_Makefile="build/nginx-1.13.6/objs/Makefile"
     gawk '/pthread/ { sub(/-lpthread /, ""); sub(/-lpthread /, ""); sub(/\\/, "-lpthread \\"); print } ! /pthread/ { print }' \
-      ${nginx_Makefile} > ${nginx_Makefile}-forOpenResty && mv ${nginx_Makefile}-forOpenResty ${nginx_Makefile}
+      ${nginx_Makefile} >${nginx_Makefile}-forOpenResty && mv ${nginx_Makefile}-forOpenResty ${nginx_Makefile}
     # END Temporary workaround for "undefined reference to `pthread_atfork'"
 
     make
     make install
     cd ..
-
 
     topic "Building LuaRocks"
     tar -xf luarocks-${LUAROCKS_VERSION}.tar.gz
@@ -222,7 +219,6 @@ else
     make build
     make install
     cd ..
-
 
     topic "Caching build"
     mkdir -p $PREFIX_CACHE_DIR
@@ -240,8 +236,7 @@ else
   fi
   # Ensure we don't have Kong from a previous build
   luarocks remove kong || true
-  if [ -d "$KONG_SOURCE_DIR" ]
-  then
+  if [ -d "$KONG_SOURCE_DIR" ]; then
     cd $KONG_SOURCE_DIR
     git fetch
     git fetch --tags
@@ -276,8 +271,7 @@ mkdir -p $BUILD_DIR/bin
 cp $BP_DIR/bin/app/heroku-* $BUILD_DIR/bin/
 
 topic "Applying buildpack v6.0.0 backward-compatibility patch"
-if [ ! -d ".heroku" ]
-then
+if [ ! -d ".heroku" ]; then
   echo "Linking '/app/.heroku' to '/app/$KONG_RUNTIME'" | indent
   ln -s "$KONG_RUNTIME/" .heroku
 else
